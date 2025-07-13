@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read and write their own user document
+    // Allow ADMIN role to update any user document (e.g., assign branches, change roles)
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin');
+    }
+
+    // Allow authenticated users to read all categories
+    match /categories/{categoryId} {
+      allow read: if request.auth != null;
+      // Allow ADMIN role to create, update, and delete categories
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    // Allow authenticated users to read all products
+    match /products/{productId} {
+      allow read: if request.auth != null;
+      // Allow ADMIN role to create, update, and delete products
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    // Allow ADMIN role to create activation codes
+    match /activationCodes/{codeId} {
+      allow read: if request.auth != null; // Allow reading codes to verify them
+      allow create: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+      allow update: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin'; // To mark as used
+    }
+
+    // Allow ADMIN role to create and manage branches
+    match /branches/{branchId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    // Allow ADMIN and CASHIER roles to manage sales
+    match /sales/{saleId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Cajero');
+    }
+
+    // Allow ADMIN and CASHIER roles to manage cash register entries
+    match /cashRegisterEntries/{entryId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Cajero');
+    }
+
+    // Allow ADMIN and CASHIER roles to manage cash register summaries
+    match /cashRegisterSummaries/{summaryId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin' || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Cajero');
+    }
+
+    // NEW RULES FOR PRESENTATIONS
+    match /presentations/{presentationId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    // NEW RULES FOR CONCENTRATIONS
+    match /concentrations/{concentrationId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
+
+    // Allow authenticated users to read all other collections (ensure this doesn't conflict with more specific rules above)
+    // This general rule will be overridden by any more specific rules for defined collections.
+    match /{collection}/{document} {
+      allow read: if request.auth != null;
+    }
+  }
+}

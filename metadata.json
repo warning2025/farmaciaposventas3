@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Farmacia Pro",
+  "description": "Un sistema web administrativo completo y futurista para una farmacia, utilizando React, Tailwind CSS y Firebase. Permite gestionar productos, stock, ventas, reportes y más.",
+  "requestFramePermissions": []
+}
