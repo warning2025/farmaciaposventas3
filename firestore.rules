@@ -1,6 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Reglas para configuración global del sistema
+    match /settings/{settingId} {
+      allow read: if request.auth != null;
+      allow write, create, update: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'Admin';
+    }
     // Allow authenticated users to read and write their own user document
     // Allow ADMIN role to update any user document (e.g., assign branches, change roles)
     match /users/{userId} {

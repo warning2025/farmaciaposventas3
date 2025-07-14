@@ -7,12 +7,86 @@ import Button from '../components/ui/Button';
 import { User, Lock, Mail, Image as ImageIcon, Save, AlertTriangle } from 'lucide-react';
 import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { auth, db, storage } from '../firebaseConfig';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
 import { FIRESTORE_COLLECTIONS } from '../constants';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Spinner from '../components/ui/Spinner';
 
 const SettingsPage: React.FC = () => {
+  const { currentUser, loading: authLoading, logout } = useAuth();
+  
+  const [systemName, setSystemName] = useState('');
+  const [systemLogoURL, setSystemLogoURL] = useState('');
+  const [systemLogoPreview, setSystemLogoPreview] = useState<string | null>(null);
+  const [isSubmittingSystem, setIsSubmittingSystem] = useState(false);
+  const [systemMessage, setSystemMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Cargar configuración global al montar
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const docRef = doc(db, 'settings', 'global');
+        const docSnap = await (await import('firebase/firestore')).getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setSystemName(data.systemName || '');
+          setSystemLogoURL(data.systemLogoURL || '');
+          setSystemLogoPreview(data.systemLogoURL || null);
+        }
+      } catch (err) {
+        // No mostrar error si no existe aún
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSystemLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSystemLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSystemLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSystemConfigUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) {
+      setSystemMessage({ type: 'error', text: 'Usuario no autenticado.' });
+      return;
+    }
+
+    try {
+      const userDoc = await (await import('firebase/firestore')).getDoc(doc(db as Firestore, 'users', currentUser.uid));
+      const userData = userDoc.data();
+      
+      if (!userData || userData.role !== 'Admin') {
+        setSystemMessage({ type: 'error', text: 'No tienes permisos para modificar la configuración.' });
+        return;
+      }
+      
+      setIsSubmittingSystem(true);
+      setSystemMessage(null);
+      
+      const docRef = doc(db as Firestore, 'settings', 'system');
+      await setDoc(docRef, {
+        systemName: systemName.trim(),
+        systemLogoURL: systemLogoURL.trim(),
+        updatedAt: new Date().toISOString(),
+        updatedBy: currentUser.uid
+      });
+
+      setSystemMessage({ type: 'success', text: 'Configuración del sistema actualizada exitosamente.' });
+    } catch (error: any) {
+      console.error('Error al guardar la configuración:', error);
+      setSystemMessage({ type: 'error', text: `Error al guardar la configuración: ${error.message}` });
+    } finally {
+      setIsSubmittingSystem(false);
+    }
+  };
   const { currentUser, loading: authLoading, logout } = useAuth();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState(''); // Email display only, not editable directly here for security.
@@ -120,6 +194,53 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
+      {/* Configuración global del sistema (solo admin) */}
+      {currentUser?.role === 'Admin' && (
+        <Card title="Configuración del Sistema" className="shadow-xl dark:bg-gray-800">
+          <form onSubmit={handleSystemConfigUpdate} className="space-y-6 p-2 md:p-0">
+            {systemMessage && (
+              <div className={`p-3 rounded-md text-sm ${systemMessage.type === 'success' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'}`}>
+                {systemMessage.text}
+              </div>
+            )}              <Input
+                label="Nombre del Sistema"
+                id="systemName"
+                value={systemName}
+                onChange={(e) => setSystemName(e.target.value)}
+                icon={<User size={18} />}
+                required
+              />
+              <Input
+                label="URL del Logo"
+                id="systemLogoURL"
+                value={systemLogoURL}
+                onChange={(e) => {
+                  setSystemLogoURL(e.target.value);
+                  setSystemLogoPreview(e.target.value);
+                }}
+                icon={<ImageIcon size={18} />}
+                placeholder="https://ejemplo.com/logo.png"
+              />
+              {systemLogoPreview && (
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative">
+                    <img 
+                      src={systemLogoPreview}
+                      alt="Logo del sistema" 
+                      className="w-32 h-32 object-contain shadow-md border-4 border-white dark:border-gray-700"
+                      onError={() => setSystemLogoPreview(null)}
+                    />
+                  </div>
+                </div>
+              )}
+            <div className="flex justify-end pt-2">
+              <Button type="submit" isLoading={isSubmittingSystem} icon={<Save size={18} />}>
+                Guardar Configuración
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
       <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Configuración de Cuenta</h1>
       
       {/* Profile Information Card */}

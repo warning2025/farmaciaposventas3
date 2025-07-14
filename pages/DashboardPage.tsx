@@ -109,22 +109,28 @@ const DashboardPage: React.FC = () => {
     ];
 
     const fetchBranchAssignments = async () => {
-      if (currentUser?.branchAssignments) {
-        console.log("currentUser.branchAssignments:", currentUser.branchAssignments);
-        const branchIds = Object.keys(currentUser.branchAssignments);
-        const branches = await getBranches();
+      try {
+        if (currentUser?.branchAssignments && typeof currentUser.branchAssignments === 'object') {
+          const branchIds = Object.keys(currentUser.branchAssignments);
+          const branches = await getBranches();
 
-        const assignments: BranchAssignment[] = branchIds.map(branchId => {
-          const branch = branches.find(b => b.id === branchId);
-          return {
-            branchName: branch?.name || 'Sucursal Desconocida',
-            role: currentUser.branchAssignments![branchId]
-          };
-        });
-        setBranchAssignments(assignments);
-        console.log("Branch Assignments:", assignments);
-      } else {
-        console.log("currentUser.branchAssignments is undefined or null.");
+          const assignments: BranchAssignment[] = branchIds.map(branchId => {
+            const branch = branches.find(b => b.id === branchId);
+            return {
+              branchName: branch?.name || 'Sucursal Desconocida',
+              role: currentUser.branchAssignments![branchId]
+            };
+          }).filter(assignment => assignment.role); // Filtra asignaciones inválidas
+
+          setBranchAssignments(assignments);
+          console.log("Branch Assignments:", assignments);
+        } else {
+          setBranchAssignments([]);
+          console.log("No hay sucursales asignadas al usuario.");
+        }
+      } catch (error) {
+        console.error("Error al cargar las asignaciones de sucursales:", error);
+        setBranchAssignments([]);
       }
     };
 

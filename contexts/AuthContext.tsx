@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           email: firebaseUser.email || '',
           displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Usuario',
           photoURL: firebaseUser.photoURL || `https://ui-avatars.com/api/?name=${firebaseUser.email?.split('@')[0] || 'U'}&background=random`,
-          role: UserRole.CASHIER, // Default role if not found
+          role: 'Admin', // Por ahora establecemos Admin como rol por defecto para pruebas
         };
 
         if (userDocSnap.exists()) {
